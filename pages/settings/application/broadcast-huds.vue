@@ -14,7 +14,6 @@ import { useBroadcastHuds } from "~/composables/useBroadcastHuds";
 import { useApplicationSettingsStore } from "~/stores/ApplicationSettings";
 
 const { t } = useI18n();
-const { $apollo } = useNuxtApp() as { $apollo: { defaultClient: any } };
 // The api is its own origin; a bare /api/... path would hit the panel.
 const apiDomain = useRuntimeConfig().public.apiDomain;
 
@@ -81,7 +80,12 @@ async function onFileChosen(event: Event) {
 async function makeDefault(slug: string) {
   busySlug.value = slug;
   try {
-    await $apollo.defaultClient.mutate({
+    // Reached inline rather than destructured at the top of <script setup>:
+    // a top-level `$apollo` binding lands in setupState, and vue-apollo's
+    // options mixin then cannot assign `this.$apollo` in beforeCreate --
+    // Vue refuses to let the Options API mutate a <script setup> binding, and
+    // the proxy set trap returning false throws.
+    await useNuxtApp().$apollo.defaultClient.mutate({
       mutation: generateMutation({
         insert_settings: [
           {
