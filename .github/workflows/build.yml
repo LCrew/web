@@ -19,6 +19,15 @@ jobs:
   build-amd64:
     runs-on: ubuntu-24.04
     steps:
+      # ghcr rejects a tag whose repository part has capitals, and
+      # github.repository_owner preserves the case of the org. Upstream never
+      # trips this because "5stackgg" is already lowercase; a fork whose owner
+      # is not (LCrew, say) fails every build-push with "repository name must
+      # be lowercase". Per-job because GITHUB_ENV does not cross jobs, and
+      # tr rather than ${VAR,,} so the same line is testable off-runner.
+      - name: Lowercase the owner for image refs
+        run: |
+          echo "OWNER=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Check out the repo
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -36,14 +45,23 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/amd64
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/web:buildcache-${{ env.TAG_PREFIX }}amd64
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/web:buildcache-${{ env.TAG_PREFIX }}amd64,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.OWNER }}/web:buildcache-${{ env.TAG_PREFIX }}amd64
+          cache-to: type=registry,ref=ghcr.io/${{ env.OWNER }}/web:buildcache-${{ env.TAG_PREFIX }}amd64,mode=max
           tags: |
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.CHANNEL }}-amd64
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-amd64
+            ghcr.io/${{ env.OWNER }}/web:${{ env.CHANNEL }}-amd64
+            ghcr.io/${{ env.OWNER }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-amd64
   build-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
+      # ghcr rejects a tag whose repository part has capitals, and
+      # github.repository_owner preserves the case of the org. Upstream never
+      # trips this because "5stackgg" is already lowercase; a fork whose owner
+      # is not (LCrew, say) fails every build-push with "repository name must
+      # be lowercase". Per-job because GITHUB_ENV does not cross jobs, and
+      # tr rather than ${VAR,,} so the same line is testable off-runner.
+      - name: Lowercase the owner for image refs
+        run: |
+          echo "OWNER=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Check out the repo
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -61,17 +79,26 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/arm64
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/web:buildcache-${{ env.TAG_PREFIX }}arm64
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/web:buildcache-${{ env.TAG_PREFIX }}arm64,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.OWNER }}/web:buildcache-${{ env.TAG_PREFIX }}arm64
+          cache-to: type=registry,ref=ghcr.io/${{ env.OWNER }}/web:buildcache-${{ env.TAG_PREFIX }}arm64,mode=max
           tags: |
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.CHANNEL }}-arm64
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-arm64
+            ghcr.io/${{ env.OWNER }}/web:${{ env.CHANNEL }}-arm64
+            ghcr.io/${{ env.OWNER }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-arm64
   merge:
     needs: [build-amd64, build-arm64]
     runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
+      # ghcr rejects a tag whose repository part has capitals, and
+      # github.repository_owner preserves the case of the org. Upstream never
+      # trips this because "5stackgg" is already lowercase; a fork whose owner
+      # is not (LCrew, say) fails every build-push with "repository name must
+      # be lowercase". Per-job because GITHUB_ENV does not cross jobs, and
+      # tr rather than ${VAR,,} so the same line is testable off-runner.
+      - name: Lowercase the owner for image refs
+        run: |
+          echo "OWNER=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Log in to GitHub Docker Registry
         uses: docker/login-action@v3
         with:
@@ -80,12 +107,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create manifest list and push
         run: |
-          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/web:${{ env.CHANNEL }} \
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.CHANNEL }}-amd64 \
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.CHANNEL }}-arm64
-          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/web:${{ env.TAG_PREFIX }}${{ github.sha }} \
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-amd64 \
-            ghcr.io/${{ github.repository_owner }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-arm64
+          docker buildx imagetools create -t ghcr.io/${{ env.OWNER }}/web:${{ env.CHANNEL }} \
+            ghcr.io/${{ env.OWNER }}/web:${{ env.CHANNEL }}-amd64 \
+            ghcr.io/${{ env.OWNER }}/web:${{ env.CHANNEL }}-arm64
+          docker buildx imagetools create -t ghcr.io/${{ env.OWNER }}/web:${{ env.TAG_PREFIX }}${{ github.sha }} \
+            ghcr.io/${{ env.OWNER }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-amd64 \
+            ghcr.io/${{ env.OWNER }}/web:${{ env.TAG_PREFIX }}${{ github.sha }}-arm64
       - name: Prune old images for channel
         uses: actions/github-script@v7
         with:
